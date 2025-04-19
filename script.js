@@ -428,9 +428,8 @@ class StatisticsGenerator {
 
 async function printSchedule(employeeId, employeeName) {
     const element = document.getElementById(`employee-${employeeId}`);
-    const contentWidth = 794; // Chiều rộng A4 ở 96dpi (210mm * 96 / 25.4)
-    const a4Height = 1123; // Chiều cao A4 ở 96dpi (297mm * 96 / 25.4)
-    const printScale = 2; // Tỷ lệ để đảm bảo chất lượng ảnh
+    const contentWidth = 2480; // Chiều rộng A4 tại 300dpi (210mm * 300 / 25.4)
+    const contentHeight = 3508; // Chiều cao A4 tại 300dpi (297mm * 300 / 25.4)
 
     // Clone element để không ảnh hưởng đến giao diện gốc
     const clone = element.cloneNode(true);
@@ -439,12 +438,9 @@ async function printSchedule(employeeId, employeeName) {
     clone.style.left = '-9999px';
     document.body.appendChild(clone);
 
-    // Tính chiều cao thực tế của nội dung
-    const contentHeight = clone.scrollHeight * 2; // Nhân đôi để đảm bảo lấy toàn bộ chiều cao
-
-    // Tạo canvas với kích thước đủ lớn để chứa toàn bộ nội dung
+    // Tạo canvas với kích thước chính xác là A4 tại 300dpi
     const canvas = await html2canvas(clone, {
-        scale: printScale,
+        scale: 3, // Tăng scale để cải thiện chất lượng (3x96dpi ≈ 300dpi)
         width: contentWidth,
         height: contentHeight,
         windowWidth: contentWidth,
@@ -453,39 +449,19 @@ async function printSchedule(employeeId, employeeName) {
         scrollY: 0
     });
 
-    // Tạo canvas cuối cùng với kích thước A4 chính xác
+    // Tạo canvas cuối cùng với kích thước A4 tại 300dpi
     const finalCanvas = document.createElement('canvas');
-    finalCanvas.width = contentWidth; // 794px
-    finalCanvas.height = a4Height; // 1123px
+    finalCanvas.width = contentWidth; // 2480px
+    finalCanvas.height = contentHeight; // 3508px
     const ctx = finalCanvas.getContext('2d');
     ctx.fillStyle = '#fff';
-    ctx.fillRect(0, 0, contentWidth, a4Height); // Tô nền trắng
+    ctx.fillRect(0, 0, contentWidth, contentHeight); // Tô nền trắng
+    ctx.drawImage(canvas, 0, 0, contentWidth, contentHeight);
 
-    // Tính tỷ lệ co giãn để vừa A4, giữ nguyên tỷ lệ nội dung
-    const sourceWidth = canvas.width / printScale;
-    const sourceHeight = canvas.height / printScale;
-    const aspectRatio = sourceWidth / sourceHeight;
-
-    let targetWidth, targetHeight;
-    if (aspectRatio > contentWidth / a4Height) {
-        // Nội dung rộng hơn A4, giới hạn bởi chiều rộng
-        targetWidth = contentWidth;
-        targetHeight = contentWidth / aspectRatio;
-    } else {
-        // Nội dung cao hơn A4, giới hạn bởi chiều cao
-        targetHeight = a4Height;
-        targetWidth = a4Height * aspectRatio;
-    }
-
-    // Vẽ ảnh lên canvas A4, căn giữa
-    const offsetX = (contentWidth - targetWidth) / 2;
-    const offsetY = (a4Height - targetHeight) / 2;
-    ctx.drawImage(canvas, offsetX, offsetY, targetWidth, targetHeight);
-
-    // Tải ảnh xuống
+    // Tải ảnh xuống ở định dạng JPG
     const link = document.createElement('a');
-    link.download = `lich_lam_viec_${employeeName.replace(/\s+/g, '_')}.png`;
-    link.href = finalCanvas.toDataURL('image/png', 1.0);
+    link.download = `lich_lam_viec_${employeeName.replace(/\s+/g, '_')}.jpg`;
+    link.href = finalCanvas.toDataURL('image/jpeg', 1.0); // Xuất JPG với chất lượng tối đa
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

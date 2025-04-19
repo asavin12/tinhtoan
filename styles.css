@@ -267,29 +267,45 @@ td input:focus {
     background-color: #c0392b;
 }
 
-/* CSS cho bản in A4 */
+/* CSS cho bản in A4 tại 300dpi */
 .employee-result.print-a4 {
-    width: 794px; /* Chiều rộng A4 */
+    width: 2480px; /* Chiều rộng A4 tại 300dpi (210mm * 300 / 25.4) */
+    height: 3508px; /* Chiều cao A4 tại 300dpi (297mm * 300 / 25.4) */
+    padding: 60px; /* Padding 20mm * 300 / 25.4 ≈ 60px */
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
 }
 
 .employee-result.print-a4 h3 {
-    font-size: 14px;
-    margin: 5px 0;
+    font-size: 42px; /* Tăng từ 14px * 300/96 ≈ 42px */
+    margin: 0 0 15px 0; /* Tăng margin-bottom từ 5px * 3 ≈ 15px */
 }
 
 .employee-result.print-a4 p {
-    font-size: 10px;
-    margin: 3px 0;
+    font-size: 30px; /* Tăng từ 10px * 300/96 ≈ 30px */
+    margin: 6px 0; /* Tăng từ 2px * 3 ≈ 6px */
 }
 
 .employee-result.print-a4 table {
-    font-size: 10px;
+    font-size: 27px; /* Tăng từ 9px * 300/96 ≈ 27px */
+    flex-grow: 1;
+    border-collapse: collapse;
 }
 
 .employee-result.print-a4 th, .employee-result.print-a4 td {
-    padding: 4px;
-    font-size: 10px;
+    padding: 9px; /* Tăng từ 3px * 300/96 ≈ 9px */
+    font-size: 27px; /* Tăng từ 9px * 300/96 ≈ 27px */
     line-height: 1;
+    border: 3px solid #d0d0d0; /* Tăng từ 1px * 3 ≈ 3px */
+}
+
+.employee-result.print-a4 th:first-child, .employee-result.print-a4 td:first-child {
+    width: 10%;
+}
+
+.employee-result.print-a4 button {
+    display: none; /* Ẩn nút "In" khi render ảnh */
 }
 
 /* Responsive cho mobile */
