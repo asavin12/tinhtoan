@@ -434,34 +434,29 @@ async function printSchedule(employeeId, employeeName) {
 
     // Clone element để không ảnh hưởng đến giao diện gốc
     const clone = element.cloneNode(true);
-    clone.classList.add('print-resize'); // Áp dụng CSS cho bản in
+    clone.classList.add('print-a4'); // Áp dụng CSS cho bản in A4
     clone.style.position = 'absolute';
     clone.style.left = '-9999px';
     document.body.appendChild(clone);
 
     // Tính chiều cao thực tế của nội dung
-    const contentHeight = clone.scrollHeight;
+    const contentHeight = clone.scrollHeight * 2; // Nhân đôi để đảm bảo lấy toàn bộ chiều cao
 
-    // Tính tỷ lệ thu nhỏ để nội dung vừa với chiều cao A4
-    const scaleFactor = Math.min(1, a4Height / contentHeight);
-    clone.style.transform = `scale(${scaleFactor})`;
-    clone.style.transformOrigin = 'top left';
-    clone.style.width = `${contentWidth / scaleFactor}px`;
-    clone.style.height = `${contentHeight}px`;
-
-    // Tính chiều cao sau khi scale
-    const scaledHeight = contentHeight * scaleFactor;
-
-    // Tạo canvas với kích thước A4
+    // Tạo canvas với chiều cao đủ lớn để chứa toàn bộ nội dung
     const canvas = await html2canvas(clone, {
         scale: printScale,
-        width: contentWidth / scaleFactor,
-        height: scaledHeight / scaleFactor,
-        windowWidth: contentWidth / scaleFactor,
-        windowHeight: scaledHeight / scaleFactor,
+        width: contentWidth,
+        height: contentHeight,
+        windowWidth: contentWidth,
+        windowHeight: contentHeight,
         scrollX: 0,
-        scrollY: -window.scrollY
+        scrollY: 0
     });
+
+    // Tính tỷ lệ thu nhỏ để vừa A4
+    const scaleFactor = Math.min(1, a4Height / (canvas.height / printScale));
+    const scaledHeight = (canvas.height / printScale) * scaleFactor;
+    const scaledWidth = (canvas.width / printScale) * scaleFactor;
 
     // Tạo canvas cuối cùng với kích thước A4
     const finalCanvas = document.createElement('canvas');
@@ -470,7 +465,7 @@ async function printSchedule(employeeId, employeeName) {
     const ctx = finalCanvas.getContext('2d');
     ctx.fillStyle = '#fff';
     ctx.fillRect(0, 0, contentWidth, a4Height); // Tô nền trắng
-    ctx.drawImage(canvas, 0, 0, contentWidth, scaledHeight);
+    ctx.drawImage(canvas, 0, 0, scaledWidth, scaledHeight);
 
     // Tải ảnh xuống
     const link = document.createElement('a');
