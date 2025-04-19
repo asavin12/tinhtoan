@@ -395,15 +395,6 @@ td input:focus {
         border: none;
         box-shadow: none;
         width: 100%;
-        font-size: 10px;
-    }
-
-    .employee-result h3 {
-        font-size: 14px;
-    }
-
-    .employee-result p {
-        font-size: 10px;
     }
 
     .employee-result table {
@@ -413,9 +404,8 @@ td input:focus {
     }
 
     .employee-result th, .employee-result td {
-        padding: 6px;
+        padding: 8px;
         border: 1px solid #d0d0d0;
-        font-size: 10px;
     }
 
     .employee-result button {
