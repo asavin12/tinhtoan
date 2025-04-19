@@ -28,7 +28,7 @@
         <table id="employeeTable">
             <thead>
                 <tr>
-                    <th>Cột</th>
+                    <th>Số thứ tự</th>
                     <th>Tên nhân viên</th>
                     <th>Tổng số giờ làm</th>
                     <th>Hành động</th>
@@ -43,6 +43,7 @@
         <div class="button-section">
             <button class="add-employee-btn" onclick="addEmployee()">Thêm nhân viên</button>
             <button class="generate-schedule-btn" onclick="generateSchedule()">Tạo lịch làm việc</button>
+            <button id="printAllButton" style="display: none;" onclick="printSchedule()">In PDF</button>
         </div>
         <div id="result" class="result"></div>
     </div>

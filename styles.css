@@ -148,9 +148,10 @@ td input:focus {
 
 .button-section {
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    gap: 15px;
     margin: 20px 0;
+    flex-wrap: wrap;
 }
 
 .add-employee-btn {
@@ -186,11 +187,26 @@ td input:focus {
 #employeeTable button {
     margin: 0;
     padding: 6px 12px;
-    background-color: #e74c3c;
+    background-color: #ff5506;
     font-size: 14px;
 }
 
 #employeeTable button:hover {
+    background-color: #da825a;
+}
+
+#printAllButton {
+    padding: 12px 30px;
+    background-color: #ff5506;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+#printAllButton:hover {
     background-color: #c0392b;
 }
 
@@ -351,6 +367,11 @@ td input:focus {
     }
 
     .generate-schedule-btn {
+        padding: 10px 25px;
+        font-size: 14px;
+    }
+
+    #printAllButton {
         padding: 10px 25px;
         font-size: 14px;
     }
