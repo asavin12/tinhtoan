@@ -1,0 +1,379 @@
+body {
+    font-family: 'Arial', sans-serif;
+    background-color: #f4f7fa;
+    margin: 0;
+    padding: 15px;
+    box-sizing: border-box;
+}
+
+.container {
+    max-width: 100%;
+    margin: 0 auto;
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+h1 {
+    text-align: center;
+    color: #2c3e50;
+    margin-bottom: 20px;
+    font-size: 24px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.input-section {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-bottom: 20px;
+    padding: 15px;
+    background-color: #f9fbfc;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+}
+
+.month-input, .holidays-input {
+    flex: 1 1 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.month-input label, .holidays-input label {
+    font-weight: 600;
+    color: #34495e;
+    font-size: 14px;
+}
+
+.month-input-wrapper {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+}
+
+.month-input-wrapper input[type="month"] {
+    padding-left: 35px; /* Space for the icon on the left */
+    border: 1px solid #d0d0d0;
+    border-radius: 5px;
+    font-size: 16px;
+    outline: none;
+    transition: border-color 0.3s;
+    width: 100%;
+    box-sizing: border-box;
+    background-color: #fff;
+    height: 40px;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+}
+
+/* Hide default calendar icon (for browsers that support it) */
+.month-input-wrapper input[type="month"]::-webkit-calendar-picker-indicator {
+    display: none;
+}
+
+.month-input-wrapper input[type="month"]::-moz-calendar-picker-indicator {
+    display: none;
+}
+
+.month-input-wrapper .calendar-icon {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    font-size: 18px;
+    color: #34495e;
+}
+
+.month-input input:focus, .holidays-input input:focus {
+    border-color: #3498db;
+}
+
+.holidays-input input {
+    padding: 10px;
+    border: 1px solid #d0d0d0;
+    border-radius: 5px;
+    font-size: 16px;
+    outline: none;
+    transition: border-color 0.3s;
+    width: 100%;
+    box-sizing: border-box;
+    background-color: #fff;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+}
+
+table {
+    border-collapse: collapse;
+    width: 100%;
+    margin-top: 10px;
+    font-size: 14px;
+    background-color: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 2px solid #d0d0d0;
+}
+
+th, td {
+    border: 2px solid #d0d0d0;
+    padding: 12px;
+    text-align: center;
+}
+
+th {
+    background-color: #3498db;
+    color: #fff;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+td input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #d0d0d0;
+    border-radius: 5px;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+td input:focus {
+    border-color: #3498db;
+    outline: none;
+}
+
+.button-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 20px 0;
+}
+
+.add-employee-btn {
+    padding: 8px 20px;
+    background-color: #2ecc71; /* Green */
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.add-employee-btn:hover {
+    background-color: #27ae60;
+}
+
+.generate-schedule-btn {
+    padding: 12px 30px;
+    background-color: #3498db;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.generate-schedule-btn:hover {
+    background-color: #2980b9;
+}
+
+#employeeTable button {
+    margin: 0;
+    padding: 6px 12px;
+    background-color: #e74c3c;
+    font-size: 14px;
+}
+
+#employeeTable button:hover {
+    background-color: #c0392b;
+}
+
+.result {
+    margin-top: 20px;
+}
+
+.sunday {
+    color: red;
+    font-weight: bold;
+}
+
+.sunday-bold {
+    color: red;
+    font-weight: bold;
+}
+
+.holiday {
+    color: #2ecc71; /* Dark green */
+    font-weight: bold;
+}
+
+.holiday-bold {
+    color: #2ecc71; /* Dark green */
+    font-weight: bold;
+}
+
+.employee-result {
+    margin-bottom: 40px;
+    padding: 15px;
+    width: 100%;
+    box-sizing: border-box;
+    background-color: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+.employee-result h3 {
+    color: #2c3e50;
+    margin-bottom: 15px;
+    font-size: 18px;
+}
+
+.employee-result p {
+    color: #34495e;
+    margin: 5px 0;
+    font-size: 14px;
+}
+
+.employee-result table {
+    width: 100%;
+    font-size: 12px;
+    border: 2px solid #d0d0d0;
+}
+
+.employee-result th, .employee-result td {
+    padding: 10px;
+    width: 16%;
+    border: 2px solid #d0d0d0;
+}
+
+.employee-result th:first-child, .employee-result td:first-child {
+    width: 10%;
+}
+
+.employee-result button {
+    margin: 10px 0;
+    padding: 8px 20px;
+    background-color: #e74c3c;
+}
+
+.employee-result button:hover {
+    background-color: #c0392b;
+}
+
+/* Responsive cho mobile */
+@media (max-width: 768px) {
+    body {
+        padding: 10px;
+    }
+
+    .container {
+        padding: 15px;
+    }
+
+    h1 {
+        font-size: 20px;
+        margin-bottom: 15px;
+    }
+
+    .input-section {
+        padding: 10px;
+        gap: 10px;
+    }
+
+    .month-input label, .holidays-input label {
+        font-size: 13px;
+    }
+
+    .month-input-wrapper input[type="month"], .holidays-input input {
+        padding: 8px;
+        font-size: 14px;
+        padding-left: 35px; /* Adjust padding for icon */
+    }
+
+    table {
+        font-size: 12px;
+    }
+
+    th, td {
+        padding: 8px;
+    }
+
+    th {
+        font-size: 12px;
+    }
+
+    td input {
+        padding: 6px;
+        font-size: 12px;
+    }
+
+    .button-section {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .add-employee-btn {
+        padding: 6px 15px;
+        font-size: 12px;
+        align-self: flex-start;
+    }
+
+    .generate-schedule-btn {
+        padding: 10px 25px;
+        font-size: 14px;
+    }
+
+    #employeeTable button {
+        padding: 4px 10px;
+        font-size: 12px;
+    }
+
+    .employee-result {
+        padding: 10px;
+    }
+
+    .employee-result h3 {
+        font-size: 16px;
+    }
+
+    .employee-result p {
+        font-size: 12px;
+    }
+
+    .employee-result table {
+        font-size: 10px;
+    }
+
+    .employee-result th, .employee-result td {
+        padding: 6px;
+    }
+
+    .employee-result button {
+        padding: 6px 15px;
+        font-size: 12px;
+    }
+}
+
+/* Responsive cho bảng kết quả trên mobile */
+@media (max-width: 600px) {
+    .employee-result table {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+
+    .employee-result th, .employee-result td {
+        min-width: 60px;
+    }
+
+    .employee-result th:first-child, .employee-result td:first-child {
+        min-width: 40px;
+    }
+}

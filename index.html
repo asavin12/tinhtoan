@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phân phối giờ làm việc nhân viên</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body onload="loadEmployeesFromStorage()">
+    <div class="container">
+        <h1>Phân Phối Giờ Làm Việc Nhân Viên</h1>
+        <div class="input-section">
+            <div class="month-input">
+                <label for="month">Chọn tháng:</label>
+                <div class="month-input-wrapper">
+                    <span class="calendar-icon" onclick="document.getElementById('month').showPicker()">📅</span>
+                    <input type="month" id="month" name="month" lang="vi">
+                </div>
+            </div>
+            <div class="holidays-input">
+                <label for="holidays">Ngày nghỉ lễ (cách nhau bởi dấu phẩy, ví dụ: 1,15,20):</label>
+                <input type="text" id="holidays" placeholder="Nhập ngày nghỉ lễ">
+            </div>
+        </div>
+        <table id="employeeTable">
+            <thead>
+                <tr>
+                    <th>Số thứ tự</th>
+                    <th>Tên nhân viên</th>
+                    <th>Tổng số giờ làm</th>
+                    <th>Hành động</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>1</td><td><input type="text" class="employee-name"></td><td><input type="number" class="total-hours" min="0"></td><td><button onclick="deleteEmployee(this)">Xóa tên</button></td></tr>
+                <tr><td>2</td><td><input type="text" class="employee-name"></td><td><input type="number" class="total-hours" min="0"></td><td><button onclick="deleteEmployee(this)">Xóa tên</button></td></tr>
+                <tr><td>3</td><td><input type="text" class="employee-name"></td><td><input type="number" class="total-hours" min="0"></td><td><button onclick="deleteEmployee(this)">Xóa tên</button></td></tr>
+            </tbody>
+        </table>
+        <div class="button-section">
+            <button class="add-employee-btn" onclick="addEmployee()">Thêm nhân viên</button>
+            <button class="generate-schedule-btn" onclick="generateSchedule()">Tạo lịch làm việc</button>
+        </div>
+        <div id="result" class="result"></div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
