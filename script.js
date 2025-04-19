@@ -330,11 +330,18 @@ class HourAllocator {
                     breakTime = Math.random() < 0.5 ? 0.5 : 1; // 30 or 60 minutes
                 }
 
+                // Tính endTime và kiểm tra lỗi NaN
                 const endTime = new Date(`2023-01-01 ${startTime}`);
                 endTime.setMinutes(endTime.getMinutes() + (hours + breakTime) * 60);
-                const endHour = endTime.getHours().toString().padStart(2, '0');
-                const endMinutes = endTime.getMinutes().toString().padStart(2, '0');
-                const endTimeStr = `${endHour}:${endMinutes}`;
+                const endHour = endTime.getHours();
+                const endMinutes = endTime.getMinutes();
+
+                let endTimeStr = '-';
+                if (!isNaN(endHour) && !isNaN(endMinutes)) {
+                    endTimeStr = `${endHour.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}`;
+                } else {
+                    console.warn(`Lỗi tính toán endTime cho ngày ${day} của ${employee.name}: startTime=${startTime}, hours=${hours}, breakTime=${breakTime}`);
+                }
 
                 employee.schedule.push({ day, startTime, endTime: endTimeStr, breakTime, hours });
             });
@@ -419,33 +426,96 @@ class StatisticsGenerator {
     }
 }
 
-function printSchedule(employeeId, employeeName) {
+async function printSchedule(employeeId, employeeName) {
     const element = document.getElementById(`employee-${employeeId}`);
-    
-    // Tính toán chiều cao thực tế của nội dung
-    const contentHeight = element.scrollHeight;
     const contentWidth = 794; // Chiều rộng A4 ở 96dpi (210mm * 96 / 25.4)
+    const a4Height = 1123; // Chiều cao A4 ở 96dpi (297mm * 96 / 25.4)
+    const scale = 2; // Tỷ lệ để đảm bảo chất lượng
 
-    // Tạo canvas với kích thước động
-    html2canvas(element, {
-        scale: 3, // Tăng tỷ lệ để cải thiện chất lượng
-        width: contentWidth,
-        height: contentHeight,
-        windowWidth: contentWidth,
-        windowHeight: contentHeight,
-        scrollX: 0,
-        scrollY: -window.scrollY // Đảm bảo canvas bắt đầu từ đầu nội dung
-    }).then(canvas => {
-        const link = document.createElement('a');
-        link.download = `lich_lam_viec_${employeeName.replace(/\s+/g, '_')}.png`;
-        link.href = canvas.toDataURL('image/png', 1.0);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    }).catch(error => {
-        console.error('Error generating image:', error);
-        alert('Có lỗi xảy ra khi tạo ảnh. Vui lòng thử lại!');
+    // Clone element để không ảnh hưởng đến giao diện gốc
+    const clone = element.cloneNode(true);
+    clone.style.width = `${contentWidth / scale}px`; // Điều chỉnh kích thước để vừa A4
+    clone.style.position = 'absolute';
+    clone.style.left = '-9999px';
+    document.body.appendChild(clone);
+
+    const headerHeight = clone.querySelector('h3').offsetHeight +
+                        clone.querySelectorAll('p')[0].offsetHeight +
+                        clone.querySelectorAll('p')[1].offsetHeight;
+    const table = clone.querySelector('table');
+    const rows = table.querySelectorAll('tbody tr');
+    const rowHeight = rows[0].offsetHeight;
+    const headerRowHeight = table.querySelector('thead tr').offsetHeight;
+    const footerHeight = clone.querySelectorAll('p')[2].offsetHeight +
+                        clone.querySelectorAll('p')[3].offsetHeight +
+                        clone.querySelectorAll('p')[4].offsetHeight;
+
+    // Số dòng tối đa trên mỗi trang A4
+    const maxRowsPerPage = Math.floor((a4Height - headerHeight - headerRowHeight - footerHeight) / rowHeight);
+    const pages = [];
+    let currentRows = [];
+    let rowIndex = 0;
+
+    // Chia bảng thành các trang
+    for (let i = 0; i < rows.length; i++) {
+        currentRows.push(rows[i]);
+        rowIndex++;
+
+        if (rowIndex === maxRowsPerPage || i === rows.length - 1) {
+            // Tạo một clone mới cho mỗi trang
+            const pageClone = element.cloneNode(true);
+            pageClone.style.width = `${contentWidth / scale}px`;
+            pageClone.style.position = 'absolute';
+            pageClone.style.left = '-9999px';
+
+            const pageTable = pageClone.querySelector('table');
+            const pageTbody = pageTable.querySelector('tbody');
+            pageTbody.innerHTML = '';
+            currentRows.forEach(row => pageTbody.appendChild(row.cloneNode(true)));
+
+            document.body.appendChild(pageClone);
+            pages.push(pageClone);
+
+            currentRows = [];
+            rowIndex = 0;
+        }
+    }
+
+    // Tạo canvas cho từng trang và ghép lại
+    const canvases = [];
+    for (const page of pages) {
+        const canvas = await html2canvas(page, {
+            scale: scale,
+            width: contentWidth / scale,
+            height: a4Height / scale,
+            windowWidth: contentWidth / scale,
+            windowHeight: a4Height / scale,
+            scrollX: 0,
+            scrollY: -window.scrollY
+        });
+        canvases.push(canvas);
+        document.body.removeChild(page);
+    }
+    document.body.removeChild(clone);
+
+    // Tạo canvas tổng để ghép tất cả các trang
+    const totalHeight = a4Height * canvases.length;
+    const finalCanvas = document.createElement('canvas');
+    finalCanvas.width = contentWidth;
+    finalCanvas.height = totalHeight;
+    const ctx = finalCanvas.getContext('2d');
+
+    canvases.forEach((canvas, index) => {
+        ctx.drawImage(canvas, 0, index * a4Height, contentWidth, a4Height);
     });
+
+    // Tải ảnh xuống
+    const link = document.createElement('a');
+    link.download = `lich_lam_viec_${employeeName.replace(/\s+/g, '_')}.png`;
+    link.href = finalCanvas.toDataURL('image/png', 1.0);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 }
 
 function saveEmployeesToStorage() {
