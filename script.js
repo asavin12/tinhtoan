@@ -421,12 +421,20 @@ class StatisticsGenerator {
 
 function printSchedule(employeeId, employeeName) {
     const element = document.getElementById(`employee-${employeeId}`);
+    
+    // Tính toán chiều cao thực tế của nội dung
+    const contentHeight = element.scrollHeight;
+    const contentWidth = 794; // Chiều rộng A4 ở 96dpi (210mm * 96 / 25.4)
+
+    // Tạo canvas với kích thước động
     html2canvas(element, {
-        scale: 2,
-        width: 794,
-        height: 1123,
-        windowWidth: 794,
-        windowHeight: 1123
+        scale: 3, // Tăng tỷ lệ để cải thiện chất lượng
+        width: contentWidth,
+        height: contentHeight,
+        windowWidth: contentWidth,
+        windowHeight: contentHeight,
+        scrollX: 0,
+        scrollY: -window.scrollY // Đảm bảo canvas bắt đầu từ đầu nội dung
     }).then(canvas => {
         const link = document.createElement('a');
         link.download = `lich_lam_viec_${employeeName.replace(/\s+/g, '_')}.png`;
