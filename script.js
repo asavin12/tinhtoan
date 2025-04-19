@@ -33,14 +33,30 @@ class EmployeeManager {
 
     loadEmployees() {
         const rows = document.querySelectorAll('#employeeTable tbody tr');
+        const storedSchedules = localStorage.getItem('employeeSchedules');
+        const schedules = storedSchedules ? JSON.parse(storedSchedules) : [];
         this.employees = [];
+
         rows.forEach(row => {
             const name = row.querySelector('.employee-name').value.trim();
             const hours = parseFloat(row.querySelector('.total-hours').value) || 0;
             if (name && hours > 0) {
-                this.employees.push({ name, totalHours: hours, restDays: new Set() });
+                const storedEmployee = schedules.find(emp => emp.name === name && emp.totalHours === hours);
+                this.employees.push({
+                    name,
+                    totalHours: hours,
+                    restDays: storedEmployee && Array.isArray(storedEmployee.restDays) 
+                        ? new Set(storedEmployee.restDays) 
+                        : new Set(),
+                    schedule: storedEmployee && Array.isArray(storedEmployee.schedule) 
+                        ? storedEmployee.schedule 
+                        : []
+                });
+            } else {
+                console.warn(`Bỏ qua nhân viên: ${name}, totalHours: ${hours}`);
             }
         });
+        console.log('Danh sách nhân viên:', this.employees);
         return this.employees;
     }
 }
@@ -195,11 +211,20 @@ class HourAllocator {
 
     allocate() {
         this.employees.forEach(employee => {
+            console.log(`Phân bổ lịch cho ${employee.name}, totalHours: ${employee.totalHours}`);
+            employee.schedule = [];
+
             const workDays = this.days.filter(day => !employee.restDays.has(day.day)).map(day => day.day);
+            console.log(`workDays: ${workDays}`);
+
+            if (workDays.length === 0) {
+                console.warn(`Không có ngày làm việc cho ${employee.name}. Kiểm tra restDays:`, employee.restDays);
+                return;
+            }
+
             let remainingHours = employee.totalHours;
             const dailyHours = new Array(workDays.length).fill(0);
 
-            // Determine min and max hours based on total hours
             let minHours, maxHours;
             if (employee.totalHours < 60) {
                 minHours = 1;
@@ -211,70 +236,39 @@ class HourAllocator {
                 minHours = 6;
                 maxHours = 8;
             }
+            console.log(`minHours: ${minHours}, maxHours: ${maxHours}`);
 
-            // Prioritize Saturdays (weekday 6) with max hours, max - 0.5, or max - 1 hours
+            // Phân bổ giờ cho thứ Bảy
             const workDaysWithWeekday = workDays.map(day => {
                 const dayInfo = this.days.find(d => d.day === day);
                 return { day, weekday: dayInfo.weekday };
             });
 
-            // Allocate hours to Saturdays with random selection among max, max-0.5, max-1
             workDaysWithWeekday.forEach((workDay, i) => {
-                if (workDay.weekday === 6) { // Saturday
+                if (workDay.weekday === 6) {
                     const random = Math.random();
-                    let hours;
-                    if (random < 0.333) {
-                        hours = maxHours; // 33.3% chance for max hours
-                    } else if (random < 0.666) {
-                        hours = maxHours - 0.5; // 33.3% chance for max - 0.5
-                    } else {
-                        hours = maxHours - 1; // 33.3% chance for max - 1
-                    }
+                    let hours = random < 0.333 ? maxHours : random < 0.666 ? maxHours - 0.5 : maxHours - 1;
                     if (remainingHours >= hours) {
                         dailyHours[i] = hours;
                         remainingHours -= hours;
+                        console.log(`Ngày ${workDay.day} (Thứ Bảy): ${hours} giờ`);
                     }
                 }
             });
 
-            // Allocate minimum hours to remaining days
+            // Phân bổ giờ tối thiểu cho các ngày còn lại
             workDaysWithWeekday.forEach((workDay, i) => {
-                if (dailyHours[i] === 0) { // Skip Saturdays already allocated
+                if (dailyHours[i] === 0) {
                     const hours = minHours;
                     if (remainingHours >= hours) {
                         dailyHours[i] = hours;
                         remainingHours -= hours;
+                        console.log(`Ngày ${workDay.day}: ${hours} giờ`);
                     }
                 }
             });
 
-            // Ensure all days meet minHours by redistributing hours if necessary
-            workDaysWithWeekday.forEach((workDay, i) => {
-                if (dailyHours[i] > 0 && dailyHours[i] < minHours) {
-                    const additionalHoursNeeded = minHours - dailyHours[i];
-                    if (remainingHours >= additionalHoursNeeded) {
-                        dailyHours[i] += additionalHoursNeeded;
-                        remainingHours -= additionalHoursNeeded;
-                    } else {
-                        // Find days with excess hours to redistribute
-                        const excessDays = dailyHours
-                            .map((h, idx) => ({ hours: h, idx }))
-                            .filter(d => d.hours > minHours && workDaysWithWeekday[d.idx].weekday !== 6);
-                        let hoursToRedistribute = additionalHoursNeeded;
-                        while (hoursToRedistribute > 0 && excessDays.length > 0) {
-                            const donorDay = excessDays[Math.floor(Math.random() * excessDays.length)];
-                            const excess = donorDay.hours - minHours;
-                            const hoursToTake = Math.min(excess, hoursToRedistribute);
-                            dailyHours[donorDay.idx] -= hoursToTake;
-                            dailyHours[i] += hoursToTake;
-                            hoursToRedistribute -= hoursToTake;
-                            excessDays.splice(excessDays.indexOf(donorDay), 1);
-                        }
-                    }
-                }
-            });
-
-            // Distribute remaining hours to non-Saturday days
+            // Phân phối giờ còn lại
             while (remainingHours > 0 && dailyHours.some((h, i) => h < maxHours && workDaysWithWeekday[i].weekday !== 6)) {
                 const eligibleIndices = dailyHours
                     .map((h, idx) => ({ hours: h, idx }))
@@ -286,31 +280,14 @@ class HourAllocator {
                 if (remainingHours >= increment && dailyHours[index] + increment <= maxHours) {
                     dailyHours[index] += increment;
                     remainingHours -= increment;
-                }
-            };
-
-            // Adjust if there are still remaining hours
-            if (remainingHours > 0) {
-                const adjustableDays = dailyHours.map((h, i) => ({ hours: h, index: i }))
-                    .filter(d => d.hours < maxHours);
-                while (remainingHours > 0 && adjustableDays.length > 0) {
-                    const day = adjustableDays[Math.floor(Math.random() * adjustableDays.length)];
-                    const increment = Math.min(remainingHours, maxHours - day.hours);
-                    dailyHours[day.index] += increment;
-                    remainingHours -= increment;
-                    adjustableDays.splice(adjustableDays.indexOf(day), 1);
+                    console.log(`Ngày ${workDaysWithWeekday[index].day}: +${increment} giờ, còn lại: ${remainingHours}`);
                 }
             }
 
-            // Check if total hours are insufficient for minimum requirements
-            const totalAllocatedHours = dailyHours.reduce((sum, h) => sum + h, 0);
-            if (totalAllocatedHours < employee.totalHours) {
-                console.warn(`Cảnh báo: Tổng giờ làm của ${employee.name} (${totalAllocatedHours}) nhỏ hơn yêu cầu (${employee.totalHours}).`);
-            }
+            console.log(`dailyHours: ${dailyHours}, remainingHours: ${remainingHours}`);
 
-            // Allocate start time, break time, and end time
-            employee.schedule = [];
-            let noBreakDays = Math.floor(Math.random() * 2) + 2; // Random 2-3 days with no break
+            // Tạo lịch
+            let noBreakDays = Math.floor(Math.random() * 2) + 2;
             let noBreakCount = 0;
 
             workDays.forEach((day, i) => {
@@ -322,15 +299,9 @@ class HourAllocator {
                 const startMinutes = Math.random() < 0.5 ? '00' : '30';
                 const startTime = `${startHour}:${startMinutes}`;
 
-                let breakTime = 0;
-                if (noBreakCount < noBreakDays && Math.random() < 0.3) {
-                    breakTime = 0;
-                    noBreakCount++;
-                } else {
-                    breakTime = Math.random() < 0.5 ? 0.5 : 1; // 30 or 60 minutes
-                }
+                let breakTime = noBreakCount < noBreakDays && Math.random() < 0.3 ? 0 : (Math.random() < 0.5 ? 0.5 : 1);
+                if (breakTime === 0) noBreakCount++;
 
-                // Tính endTime và kiểm tra lỗi NaN
                 const endTime = new Date(`2023-01-01 ${startTime}`);
                 endTime.setMinutes(endTime.getMinutes() + (hours + breakTime) * 60);
                 const endHour = endTime.getHours();
@@ -339,12 +310,15 @@ class HourAllocator {
                 let endTimeStr = '-';
                 if (!isNaN(endHour) && !isNaN(endMinutes)) {
                     endTimeStr = `${endHour.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}`;
-                } else {
-                    console.warn(`Lỗi tính toán endTime cho ngày ${day} của ${employee.name}: startTime=${startTime}, hours=${hours}, breakTime=${breakTime}`);
                 }
 
                 employee.schedule.push({ day, startTime, endTime: endTimeStr, breakTime, hours });
+                console.log(`Ngày ${day}: ${startTime} - ${endTimeStr}, nghỉ: ${breakTime}, giờ làm: ${hours}`);
             });
+
+            if (employee.schedule.length === 0) {
+                console.warn(`Lịch làm việc của ${employee.name} rỗng.`);
+            }
         });
     }
 }
@@ -380,14 +354,12 @@ class ScheduleRenderer {
                 const isHoliday = holidays.has(day);
                 let row = `<tr><td>${day}</td>`;
 
-                if (employee.restDays.has(day)) {
-                    if (isSunday) {
-                        row += `<td><span class="sunday-bold">-</span></td><td><span class="sunday-bold">-</span></td><td><span class="sunday-bold">-</span></td><td><span class="sunday-bold">-</span></td><td><span class="sunday">S</span></td>`;
-                    } else if (isHoliday) {
-                        row += `<td><span class="holiday-bold">-</span></td><td><span class="holiday-bold">-</span></td><td><span class="holiday-bold">-</span></td><td><span class="holiday-bold">-</span></td><td><span class="holiday">F</span></td>`;
-                    } else {
-                        row += `<td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>`;
-                    }
+                if (isSunday) {
+                    row += `<td><span class="sunday-bold">-</span></td><td><span class="sunday-bold">-</span></td><td><span class="sunday-bold">-</span></td><td><span class="sunday-bold">-</span></td><td><span class="sunday">S</span></td>`;
+                } else if (isHoliday) {
+                    row += `<td><span class="holiday-bold">-</span></td><td><span class="holiday-bold">-</span></td><td><span class="holiday-bold">-</span></td><td><span class="holiday-bold">-</span></td><td><span class="holiday">F</span></td>`;
+                } else if (employee.restDays.has(day)) {
+                    row += `<td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>`;
                 } else {
                     const scheduleEntry = employee.schedule.find(s => s.day === day);
                     if (scheduleEntry) {
@@ -405,7 +377,7 @@ class ScheduleRenderer {
             tableHTML += `<p>Summe der Arbeitsstunden: ${this.formatHours(totalWorkHours)}</p>`;
             tableHTML += `<p>* Pausen: mind. 30 Minuten täglich (Eingabe im Format 00:00)</p>`;
             tableHTML += `<p>** Abwesenheit: U = Urlaub, K = Krankheit, F = Feiertag, G = Geschäftsreise, T = Zeitausgleich, S = Sonntag</p>`;
-            tableHTML += `<button onclick="printSchedule(${index}, '${employee.name}')">In</button>`;
+            tableHTML += `<button onclick="printSchedule(${index}, '${employee.name}', ${month}, ${year}, '${JSON.stringify(Array.from(holidays))}')">In</button>`;
             tableHTML += `</div>`;
             resultDiv.innerHTML += tableHTML;
         });
@@ -426,48 +398,182 @@ class StatisticsGenerator {
     }
 }
 
-async function printSchedule(employeeId, employeeName) {
-    const element = document.getElementById(`employee-${employeeId}`);
-    const contentWidth = 2480; // Chiều rộng A4 tại 300dpi (210mm * 300 / 25.4)
-    const contentHeight = 3508; // Chiều cao A4 tại 300dpi (297mm * 300 / 25.4)
+function printSchedule(employeeId, employeeName, month, year, holidays) {
+    const employee = new EmployeeManager().loadEmployees()[employeeId];
+    const calendar = new CalendarGenerator(year, month);
+    const days = calendar.getDays();
+    const holidaySet = new Set(JSON.parse(holidays));
 
-    // Clone element để không ảnh hưởng đến giao diện gốc
-    const clone = element.cloneNode(true);
-    clone.classList.add('print-a4'); // Áp dụng CSS cho bản in A4
-    clone.style.position = 'absolute';
-    clone.style.left = '-9999px';
-    document.body.appendChild(clone);
+    // Kiểm tra nhân viên
+    if (!employee) {
+        console.error(`Nhân viên với employeeId=${employeeId} không tồn tại.`);
+        alert('Không tìm thấy nhân viên. Vui lòng tạo lại lịch làm việc.');
+        return;
+    }
+    if (!employee.schedule) {
+        console.error(`Lịch làm việc của nhân viên ${employee.name} không được khởi tạo.`);
+        alert('Lịch làm việc chưa được tạo. Vui lòng tạo lại lịch làm việc.');
+        return;
+    }
+    if (!employee.name || typeof month !== 'number' || typeof year !== 'number') {
+        console.error('Dữ liệu không hợp lệ:', { employee, month, year });
+        alert('Dữ liệu không hợp lệ. Vui lòng kiểm tra lại.');
+        return;
+    }
 
-    // Tạo canvas với kích thước chính xác là A4 tại 300dpi
-    const canvas = await html2canvas(clone, {
-        scale: 3, // Tăng scale để cải thiện chất lượng (3x96dpi ≈ 300dpi)
-        width: contentWidth,
-        height: contentHeight,
-        windowWidth: contentWidth,
-        windowHeight: contentHeight,
-        scrollX: 0,
-        scrollY: 0
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
     });
 
-    // Tạo canvas cuối cùng với kích thước A4 tại 300dpi
-    const finalCanvas = document.createElement('canvas');
-    finalCanvas.width = contentWidth; // 2480px
-    finalCanvas.height = contentHeight; // 3508px
-    const ctx = finalCanvas.getContext('2d');
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(0, 0, contentWidth, contentHeight); // Tô nền trắng
-    ctx.drawImage(canvas, 0, 0, contentWidth, contentHeight);
+    const pageWidth = 210;
+    const pageHeight = 297;
+    const margin = 10;
+    const maxWidth = pageWidth - 2 * margin;
+    let y = margin;
 
-    // Tải ảnh xuống ở định dạng JPG
-    const link = document.createElement('a');
-    link.download = `lich_lam_viec_${employeeName.replace(/\s+/g, '_')}.jpg`;
-    link.href = finalCanvas.toDataURL('image/jpeg', 1.0); // Xuất JPG với chất lượng tối đa
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    // Nhúng font Arial
+    doc.addFileToVFS('Arial.ttf', arialBase64);
+    doc.addFont('Arial.ttf', 'Arial', 'normal');
+    doc.setFont('Arial', 'normal');
 
-    // Xóa clone
-    document.body.removeChild(clone);
+    // Hàm chuẩn hóa văn bản
+    function sanitizeText(text) {
+        if (!text) return '';
+        return decodeURIComponent(encodeURIComponent(text));
+    }
+
+    // Title
+    try {
+        doc.setFontSize(14);
+        doc.text('Zeiterfassung', margin, y);
+        y += 8;
+
+        // Month and Name
+        doc.setFontSize(10);
+        doc.text(`Monat: ${month}/${year}`, margin, y);
+        y += 6;
+        doc.text(`Name, Vorname: ${sanitizeText(employee.name)}`, margin, y);
+        y += 10;
+    } catch (error) {
+        console.error('Lỗi khi vẽ văn bản:', error);
+        alert('Có lỗi khi tạo PDF. Vui lòng kiểm tra tên nhân viên.');
+        return;
+    }
+
+    // Prepare table data
+    const tableData = [];
+    let totalWorkHours = 0;
+
+    for (let day = 1; day <= days.length; day++) {
+        const date = new Date(year, month - 1, day);
+        const isSunday = date.getDay() === 0;
+        const isHoliday = holidaySet.has(day);
+        const row = [day.toString()];
+        let styles = {};
+
+        if (isSunday) {
+            row.push('-', '-', '-', '-', 'S');
+            styles = { textColor: [255, 0, 0], fontStyle: 'bold' };
+        } else if (isHoliday) {
+            row.push('-', '-', '-', '-', 'F');
+            styles = { textColor: [46, 204, 113], fontStyle: 'bold' };
+        } else if (employee.restDays.has(day)) {
+            row.push('-', '-', '-', '-', '-');
+            styles = {};
+        } else {
+            const scheduleEntry = employee.schedule.find(s => s.day === day);
+            if (scheduleEntry) {
+                totalWorkHours += scheduleEntry.hours;
+                row.push(
+                    scheduleEntry.startTime,
+                    scheduleEntry.endTime,
+                    ScheduleRenderer.formatBreak(scheduleEntry.breakTime),
+                    ScheduleRenderer.formatHours(scheduleEntry.hours),
+                    '-'
+                );
+                styles = {};
+            } else {
+                row.push('-', '-', '-', '-', '-');
+                styles = {};
+            }
+        }
+
+        tableData.push({ data: row, styles });
+    }
+
+    // Draw table
+    try {
+        doc.autoTable({
+            startY: y,
+            head: [['Tag', 'Kommt', 'Geht', 'Pausen*', 'Arbeitsstunden', 'Abwesenheit']],
+            body: tableData.map(row => row.data),
+            theme: 'grid',
+            styles: {
+                font: 'Arial',
+                fontSize: 8,
+                cellPadding: 2,
+                overflow: 'linebreak',
+                halign: 'center',
+                valign: 'middle'
+            },
+            headStyles: {
+                fillColor: [52, 152, 219],
+                textColor: [255, 255, 255],
+                fontSize: 8,
+                fontStyle: 'bold'
+            },
+            columnStyles: {
+                0: { cellWidth: maxWidth * 0.1 },
+                1: { cellWidth: maxWidth * 0.18 },
+                2: { cellWidth: maxWidth * 0.18 },
+                3: { cellWidth: maxWidth * 0.18 },
+                4: { cellWidth: maxWidth * 0.18 },
+                5: { cellWidth: maxWidth * 0.18 }
+            },
+            didParseCell: (data) => {
+                const rowIndex = data.row.index;
+                if (data.row.section === 'body' && rowIndex < tableData.length) {
+                    const styles = tableData[rowIndex].styles;
+                    if (styles.textColor) {
+                        data.cell.styles.textColor = styles.textColor;
+                    }
+                    if (styles.fontStyle) {
+                        data.cell.styles.fontStyle = styles.fontStyle;
+                    }
+                }
+            }
+        });
+    } catch (error) {
+        console.error('Lỗi khi vẽ bảng:', error);
+        alert('Có lỗi khi tạo bảng trong PDF.');
+        return;
+    }
+
+    // Update y position after table
+    y = doc.lastAutoTable.finalY + 8;
+
+    // Total hours
+    try {
+        doc.setFontSize(10);
+        doc.text(`Summe der Arbeitsstunden: ${ScheduleRenderer.formatHours(totalWorkHours)}`, margin, y);
+        y += 6;
+
+        // Notes
+        doc.setFontSize(8);
+        doc.text('* Pausen: mind. 30 Minuten täglich (Eingabe im Format 00:00)', margin, y);
+        y += 5;
+        doc.text('** Abwesenheit: U = Urlaub, K = Krankheit, F = Feiertag, G = Geschäftsreise, T = Zeitausgleich, S = Sonntag', margin, y);
+    } catch (error) {
+        console.error('Lỗi khi vẽ tổng giờ hoặc chú thích:', error);
+        alert('Có lỗi khi thêm tổng giờ hoặc chú thích vào PDF.');
+        return;
+    }
+
+    // Save PDF
+    doc.save(`lich_lam_viec_${employeeName.replace(/\s+/g, '_')}.pdf`);
 }
 
 function saveEmployeesToStorage() {
@@ -584,6 +690,13 @@ function generateSchedule() {
 
     const hourAllocator = new HourAllocator(employees, days);
     hourAllocator.allocate();
+
+    // Chuyển restDays từ Set thành mảng trước khi lưu
+    const employeesToStore = employees.map(emp => ({
+        ...emp,
+        restDays: Array.from(emp.restDays)
+    }));
+    localStorage.setItem('employeeSchedules', JSON.stringify(employeesToStore));
 
     ScheduleRenderer.render(employees, days, month, year, holidays);
 
