@@ -442,7 +442,7 @@ async function printSchedule(employeeId, employeeName) {
     // Tính chiều cao thực tế của nội dung
     const contentHeight = clone.scrollHeight * 2; // Nhân đôi để đảm bảo lấy toàn bộ chiều cao
 
-    // Tạo canvas với chiều cao đủ lớn để chứa toàn bộ nội dung
+    // Tạo canvas với kích thước đủ lớn để chứa toàn bộ nội dung
     const canvas = await html2canvas(clone, {
         scale: printScale,
         width: contentWidth,
@@ -453,19 +453,34 @@ async function printSchedule(employeeId, employeeName) {
         scrollY: 0
     });
 
-    // Tính tỷ lệ thu nhỏ để vừa A4
-    const scaleFactor = Math.min(1, a4Height / (canvas.height / printScale));
-    const scaledHeight = (canvas.height / printScale) * scaleFactor;
-    const scaledWidth = (canvas.width / printScale) * scaleFactor;
-
-    // Tạo canvas cuối cùng với kích thước A4
+    // Tạo canvas cuối cùng với kích thước A4 chính xác
     const finalCanvas = document.createElement('canvas');
-    finalCanvas.width = contentWidth;
-    finalCanvas.height = a4Height;
+    finalCanvas.width = contentWidth; // 794px
+    finalCanvas.height = a4Height; // 1123px
     const ctx = finalCanvas.getContext('2d');
     ctx.fillStyle = '#fff';
     ctx.fillRect(0, 0, contentWidth, a4Height); // Tô nền trắng
-    ctx.drawImage(canvas, 0, 0, scaledWidth, scaledHeight);
+
+    // Tính tỷ lệ co giãn để vừa A4, giữ nguyên tỷ lệ nội dung
+    const sourceWidth = canvas.width / printScale;
+    const sourceHeight = canvas.height / printScale;
+    const aspectRatio = sourceWidth / sourceHeight;
+
+    let targetWidth, targetHeight;
+    if (aspectRatio > contentWidth / a4Height) {
+        // Nội dung rộng hơn A4, giới hạn bởi chiều rộng
+        targetWidth = contentWidth;
+        targetHeight = contentWidth / aspectRatio;
+    } else {
+        // Nội dung cao hơn A4, giới hạn bởi chiều cao
+        targetHeight = a4Height;
+        targetWidth = a4Height * aspectRatio;
+    }
+
+    // Vẽ ảnh lên canvas A4, căn giữa
+    const offsetX = (contentWidth - targetWidth) / 2;
+    const offsetY = (a4Height - targetHeight) / 2;
+    ctx.drawImage(canvas, offsetX, offsetY, targetWidth, targetHeight);
 
     // Tải ảnh xuống
     const link = document.createElement('a');
