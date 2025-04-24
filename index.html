@@ -31,13 +31,59 @@
                     <th>Số thứ tự</th>
                     <th>Tên nhân viên</th>
                     <th>Tổng số giờ làm</th>
+                    <th>Ngày nghỉ cố định</th>
                     <th>Hành động</th>
                 </tr>
             </thead>
             <tbody>
-                <tr><td>1</td><td><input type="text" class="employee-name"></td><td><input type="number" class="total-hours" min="0"></td><td><button onclick="deleteEmployee(this)">Xóa tên</button></td></tr>
-                <tr><td>2</td><td><input type="text" class="employee-name"></td><td><input type="number" class="total-hours" min="0"></td><td><button onclick="deleteEmployee(this)">Xóa tên</button></td></tr>
-                <tr><td>3</td><td><input type="text" class="employee-name"></td><td><input type="number" class="total-hours" min="0"></td><td><button onclick="deleteEmployee(this)">Xóa tên</button></td></tr>
+                <tr>
+                    <td class="index" data-label="Số thứ tự">1</td>
+                    <td data-label="Tên nhân viên"><input type="text" class="employee-name"></td>
+                    <td data-label="Tổng số giờ làm"><input type="number" class="total-hours" min="0"></td>
+                    <td class="fixed-rest-days" data-label="Ngày nghỉ cố định">
+                        <label><input type="checkbox" class="fixed-rest-day" value="1"> T2</label>
+                        <label><input type="checkbox" class="fixed-rest-day" value="2"> T3</label>
+                        <label><input type="checkbox" class="fixed-rest-day" value="3"> T4</label>
+                        <label><input type="checkbox" class="fixed-rest-day" value="4"> T5</label>
+                        <label><input type="checkbox" class="fixed-rest-day" value="5"> T6</label>
+                    </td>
+                    <td data-label="Hành động">
+                        <button id="random-btn-1" class="random-btn" onclick="randomizeEmployeeRestDays(this)">Random</button>
+                        <button onclick="deleteEmployee(this)">Xóa</button>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="index" data-label="Số thứ tự">2</td>
+                    <td data-label="Tên nhân viên"><input type="text" class="employee-name"></td>
+                    <td data-label="Tổng số giờ làm"><input type="number" class="total-hours" min="0"></td>
+                    <td class="fixed-rest-days" data-label="Ngày nghỉ cố định">
+                        <label><input type="checkbox" class="fixed-rest-day" value="1"> T2</label>
+                        <label><input type="checkbox" class="fixed-rest-day" value="2"> T3</label>
+                        <label><input type="checkbox" class="fixed-rest-day" value="3"> T4</label>
+                        <label><input type="checkbox" class="fixed-rest-day" value="4"> T5</label>
+                        <label><input type="checkbox" class="fixed-rest-day" value="5"> T6</label>
+                    </td>
+                    <td data-label="Hành động">
+                        <button id="random-btn-2" class="random-btn" onclick="randomizeEmployeeRestDays(this)">Random</button>
+                        <button onclick="deleteEmployee(this)">Xóa</button>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="index" data-label="Số thứ tự">3</td>
+                    <td data-label="Tên nhân viên"><input type="text" class="employee-name"></td>
+                    <td data-label="Tổng số giờ làm"><input type="number" class="total-hours" min="0"></td>
+                    <td class="fixed-rest-days" data-label="Ngày nghỉ cố định">
+                        <label><input type="checkbox" class="fixed-rest-day" value="1"> T2</label>
+                        <label><input type="checkbox" class="fixed-rest-day" value="2"> T3</label>
+                        <label><input type="checkbox" class="fixed-rest-day" value="3"> T4</label>
+                        <label><input type="checkbox" class="fixed-rest-day" value="4"> T5</label>
+                        <label><input type="checkbox" class="fixed-rest-day" value="5"> T6</label>
+                    </td>
+                    <td data-label="Hành động">
+                        <button id="random-btn-3" class="random-btn" onclick="randomizeEmployeeRestDays(this)">Random</button>
+                        <button onclick="deleteEmployee(this)">Xóa</button>
+                    </td>
+                </tr>
             </tbody>
         </table>
         <div class="button-section">

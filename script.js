@@ -43,19 +43,28 @@ class EmployeeManager {
         const schedules = storedSchedules ? JSON.parse(storedSchedules) : [];
         this.employees = [];
 
-        rows.forEach(row => {
+        rows.forEach((row, index) => {
             const name = row.querySelector('.employee-name').value.trim();
             const hours = parseFloat(row.querySelector('.total-hours').value) || 0;
+            const fixedRestDaysInputs = row.querySelectorAll('.fixed-rest-day:checked');
+            const fixedRestDays = Array.from(fixedRestDaysInputs).map(input => parseInt(input.value));
+            const randomBtn = row.querySelector(`#random-btn-${index + 1}`);
+            if (fixedRestDays.length > 0 && randomBtn) {
+                randomBtn.classList.add('hide-random-btn');
+            } else if (randomBtn) {
+                randomBtn.classList.remove('hide-random-btn');
+            }
             if (name && hours > 0) {
                 const storedEmployee = schedules.find(emp => emp.name === name && emp.totalHours === hours);
                 this.employees.push({
                     name,
                     totalHours: hours,
-                    restDays: storedEmployee && Array.isArray(storedEmployee.restDays) 
-                        ? new Set(storedEmployee.restDays) 
+                    fixedRestDays: new Set(fixedRestDays),
+                    restDays: storedEmployee && Array.isArray(storedEmployee.restDays)
+                        ? new Set(storedEmployee.restDays)
                         : new Set(),
-                    schedule: storedEmployee && Array.isArray(storedEmployee.schedule) 
-                        ? storedEmployee.schedule 
+                    schedule: storedEmployee && Array.isArray(storedEmployee.schedule)
+                        ? storedEmployee.schedule
                         : []
                 });
             } else {
@@ -77,7 +86,7 @@ class WeekAnalyzer {
         const weeks = [];
         let currentWeek = [];
         this.days.forEach(day => {
-            if (day.weekday === 1 && currentWeek.length > 0) { // Monday starts a new week
+            if (day.weekday === 1 && currentWeek.length > 0) {
                 weeks.push(currentWeek);
                 currentWeek = [];
             }
@@ -91,7 +100,7 @@ class WeekAnalyzer {
             const workDays = week.filter(day => !this.holidays.has(day.day) && day.weekday !== 0).length;
             return {
                 days: week,
-                isComplete: workDays === 6, // Full week: Mon-Sat (excluding holidays and Sundays)
+                isComplete: workDays === 6,
                 workDays: workDays
             };
         });
@@ -101,34 +110,50 @@ class WeekAnalyzer {
 }
 
 class DayOffDistributor {
-    constructor(employees, weeks, holidays) {
+    constructor(employees, weeks, holidays, days) {
         this.employees = employees;
         this.weeks = weeks;
         this.holidays = holidays;
+        this.days = days;
     }
 
     distribute() {
-        // Add Sundays and holidays to rest days for all employees
+        // Thêm ngày lễ và Chủ nhật vào restDays
         this.employees.forEach(employee => {
-            employee.restDays = new Set(this.holidays); // Khởi tạo với ngày lễ
-            this.weeks.forEach(week => {
-                week.days.forEach(day => {
-                    if (day.weekday === 0) { // Sunday
-                        employee.restDays.add(day.day);
-                    }
-                });
+            employee.restDays = new Set(this.holidays);
+            this.days.forEach(day => {
+                if (day.weekday === 0) {
+                    employee.restDays.add(day.day);
+                }
             });
         });
 
-        // Distribute rest days
+        // Thêm ngày nghỉ cố định vào restDays (coi như ngày nghỉ thường)
+        this.employees.forEach(employee => {
+            if (employee.fixedRestDays.size > 0) {
+                this.days.forEach(day => {
+                    if (employee.fixedRestDays.has(day.weekday)) {
+                        employee.restDays.add(day.day);
+                    }
+                });
+            }
+        });
+
+        // Phân phối ngày nghỉ ngẫu nhiên chỉ cho nhân viên không có ngày nghỉ cố định
+        const employeesToRandomize = this.employees.filter(emp => emp.fixedRestDays.size === 0);
         this.weeks.forEach(week => {
             if (week.isComplete) {
-                const weekdays = week.days.filter(day => day.weekday >= 1 && day.weekday <= 5 && !this.holidays.has(day.day));
+                const weekdays = week.days.filter(day => 
+                    day.weekday >= 1 && 
+                    day.weekday <= 5 && 
+                    !this.holidays.has(day.day) && 
+                    !this.employees.some(emp => emp.fixedRestDays.has(day.weekday))
+                );
                 const restAssignments = new Array(weekdays.length).fill(0);
-                const restDaysAssigned = new Array(this.employees.length).fill(false);
+                const restDaysAssigned = new Array(employeesToRandomize.length).fill(false);
 
                 weekdays.forEach((_, dayIndex) => {
-                    const availableEmployees = this.employees
+                    const availableEmployees = employeesToRandomize
                         .map((emp, idx) => ({ emp, idx }))
                         .filter((_, idx) => !restDaysAssigned[idx]);
                     if (availableEmployees.length === 0) return;
@@ -146,8 +171,8 @@ class DayOffDistributor {
                 });
 
                 weekdays.forEach((_, dayIndex) => {
-                    while (restAssignments[dayIndex] < 2) {
-                        const availableEmployees = this.employees
+                    while (restAssignments[dayIndex] < 2 && employeesToRandomize.length > 0) {
+                        const availableEmployees = employeesToRandomize
                             .map((emp, idx) => ({ emp, idx }))
                             .filter((e, idx) => !e.emp.restDays.has(weekdays[dayIndex].day) && !restDaysAssigned[idx]);
                         if (availableEmployees.length === 0) break;
@@ -165,24 +190,29 @@ class DayOffDistributor {
                     }
                 });
             } else {
-                const weekdays = week.days.filter(day => day.weekday >= 1 && day.weekday <= 6 && !this.holidays.has(day.day));
+                const weekdays = week.days.filter(day => 
+                    day.weekday >= 1 && 
+                    day.weekday <= 6 && 
+                    !this.holidays.has(day.day) && 
+                    !this.employees.some(emp => emp.fixedRestDays.has(day.weekday))
+                );
                 if (weekdays.length === 1) {
                     const day = weekdays[0].day;
-                    if (weekdays[0].weekday === 6 && !this.holidays.has(day)) {
+                    if (weekdays[0].weekday === 6) {
                         // Everyone works on Saturday
                     } else {
-                        const employeeIndex = Math.floor(Math.random() * this.employees.length);
-                        this.employees[employeeIndex].restDays.add(day);
+                        const employeeIndex = Math.floor(Math.random() * employeesToRandomize.length);
+                        employeesToRandomize[employeeIndex].restDays.add(day);
                     }
                 } else if (weekdays.length >= 2 && weekdays.length <= 4) {
                     const restDays = weekdays.filter(day => day.weekday !== 6);
-                    const restAssignments = new Array(this.employees.length).fill(false);
+                    const restAssignments = new Array(employeesToRandomize.length).fill(false);
                     restDays.forEach(day => {
-                        const availableEmployees = this.employees.filter((_, idx) => !restAssignments[idx]);
+                        const availableEmployees = employeesToRandomize.filter((_, idx) => !restAssignments[idx]);
                         if (availableEmployees.length > 0) {
                             const employeeIndex = Math.floor(Math.random() * availableEmployees.length);
-                            const globalIndex = this.employees.indexOf(availableEmployees[employeeIndex]);
-                            this.employees[globalIndex].restDays.add(day.day);
+                            const globalIndex = employeesToRandomize.indexOf(availableEmployees[employeeIndex]);
+                            employeesToRandomize[globalIndex].restDays.add(day.day);
                             restAssignments[globalIndex] = true;
                         }
                     });
@@ -190,13 +220,65 @@ class DayOffDistributor {
             }
         });
 
-        // Đảm bảo không phân bổ giờ làm cho ngày lễ
+        // Đảm bảo không phân bổ giờ làm cho ngày lễ và ngày nghỉ cố định
         this.employees.forEach(employee => {
-            employee.schedule = employee.schedule.filter(s => !this.holidays.has(s.day));
-            this.holidays.forEach(holiday => {
-                employee.restDays.add(holiday);
+            employee.schedule = employee.schedule.filter(s => !employee.restDays.has(s.day));
+        });
+    }
+
+    redistributeForEmployee(employee) {
+        // Lấy danh sách ngày nghỉ ngẫu nhiên hiện tại
+        const fixedRestDays = new Set(this.holidays);
+        this.days.forEach(day => {
+            if (day.weekday === 0) {
+                fixedRestDays.add(day.day);
+            }
+        });
+        const randomRestDays = Array.from(employee.restDays).filter(day => !fixedRestDays.has(day));
+
+        // Tạo bản đồ để ánh xạ ngày sang tuần
+        const dayToWeek = new Map();
+        this.weeks.forEach((week, weekIndex) => {
+            week.days.forEach(day => {
+                dayToWeek.set(day.day, { weekIndex, isComplete: week.isComplete });
             });
         });
+
+        // Chọn ngẫu nhiên một ngày nghỉ để hoán đổi
+        if (randomRestDays.length === 0) return;
+
+        const restDayIndex = Math.floor(Math.random() * randomRestDays.length);
+        const restDay = randomRestDays[restDayIndex];
+        const weekInfo = dayToWeek.get(restDay);
+
+        // Không random nếu tuần không hoàn chỉnh
+        if (!weekInfo || !weekInfo.isComplete) return;
+
+        // Lấy tất cả các ngày từ Thứ Hai đến Thứ Sáu trong tuần đó
+        const week = this.weeks[weekInfo.weekIndex];
+        const availableDays = week.days
+            .filter(day => 
+                day.weekday >= 1 && 
+                day.weekday <= 5 && 
+                !this.holidays.has(day.day) && 
+                !employee.restDays.has(day.day) && 
+                !this.employees.some(emp => emp.fixedRestDays.has(day.weekday))
+            )
+            .map(day => day.day);
+
+        // Nếu không có ngày khả dụng, bỏ qua
+        if (availableDays.length === 0) return;
+
+        // Chọn ngẫu nhiên một ngày để hoán đổi
+        const swapDayIndex = Math.floor(Math.random() * availableDays.length);
+        const swapDay = availableDays[swapDayIndex];
+
+        // Hoán đổi ngày
+        employee.restDays.delete(restDay);
+        employee.restDays.add(swapDay);
+
+        // Cập nhật lịch làm việc
+        employee.schedule = employee.schedule.filter(s => !employee.restDays.has(s.day));
     }
 }
 
@@ -235,7 +317,6 @@ class HourAllocator {
             }
             console.log(`minHours: ${minHours}, maxHours: ${maxHours}`);
 
-            // Phân bổ giờ cho thứ Bảy
             const workDaysWithWeekday = workDays.map(day => {
                 const dayInfo = this.days.find(d => d.day === day);
                 return { day, weekday: dayInfo.weekday };
@@ -253,7 +334,6 @@ class HourAllocator {
                 }
             });
 
-            // Phân bổ giờ tối thiểu cho các ngày còn lại
             workDaysWithWeekday.forEach((workDay, i) => {
                 if (dailyHours[i] === 0) {
                     const hours = minHours;
@@ -265,7 +345,6 @@ class HourAllocator {
                 }
             });
 
-            // Phân phối giờ còn lại
             while (remainingHours > 0 && dailyHours.some((h, i) => h < maxHours && workDaysWithWeekday[i].weekday !== 6)) {
                 const eligibleIndices = dailyHours
                     .map((h, idx) => ({ hours: h, idx }))
@@ -283,26 +362,23 @@ class HourAllocator {
 
             console.log(`dailyHours: ${dailyHours}, remainingHours: ${remainingHours}`);
 
-            // Tạo lịch
             workDays.forEach((day, i) => {
                 const hours = dailyHours[i];
                 if (hours === 0) return;
 
-                // Quy định thời gian nghỉ
                 let breakTime;
                 if (hours === 4 || hours === 4.5) {
-                    breakTime = 0.5; // 30 phút
+                    breakTime = 0.5;
                 } else if (hours >= 5) {
-                    breakTime = 1; // 60 phút
+                    breakTime = 1;
                 } else {
-                    breakTime = 0; // Không nghỉ
+                    breakTime = 0;
                 }
 
-                const maxStartHour = Math.floor(20 - (hours + breakTime)); // Đảm bảo endTime <= 20:00
+                const maxStartHour = Math.floor(20 - (hours + breakTime));
                 const startHour = 9 + Math.floor(Math.random() * (maxStartHour - 9 + 1));
                 const startTime = `${startHour}:00`;
 
-                // Tính giờ kết thúc
                 const startParts = startTime.split(':');
                 const startHourNum = parseInt(startParts[0], 10);
                 const startMinutesNum = parseInt(startParts[1], 10);
@@ -311,7 +387,6 @@ class HourAllocator {
                 let endHour = Math.floor(totalMinutes / 60) % 24;
                 let endMinutes = totalMinutes % 60;
 
-                // Đảm bảo endHour <= 20
                 if (endHour > 20 || (endHour === 20 && endMinutes > 0)) {
                     endHour = 20;
                     endMinutes = 0;
@@ -397,7 +472,8 @@ class StatisticsGenerator {
             totalWorkDays: days.filter(day => day.weekday !== 0).length,
             restDaysPerEmployee: employees.map(emp => ({
                 name: emp.name,
-                restDays: emp.restDays.size
+                fixedRestDays: emp.fixedRestDays.size,
+                totalRestDays: emp.restDays.size
             }))
         };
         return stats;
@@ -429,12 +505,10 @@ function printSchedule() {
     const margin = 10;
     const maxWidth = pageWidth - 2 * margin;
 
-    // Nhúng font Arial
     doc.addFileToVFS('Arial.ttf', arialBase64);
     doc.addFont('Arial.ttf', 'Arial', 'normal');
     doc.setFont('Arial', 'normal');
 
-    // Hàm chuẩn hóa văn bản
     function sanitizeText(text) {
         if (!text) return '';
         return decodeURIComponent(encodeURIComponent(text));
@@ -446,13 +520,11 @@ function printSchedule() {
         }
         let y = margin;
 
-        // Title
         try {
             doc.setFontSize(14);
             doc.text('Zeiterfassung', margin, y);
             y += 8;
 
-            // Month and Name
             doc.setFontSize(10);
             doc.text(`Monat: ${month}/${year}`, margin, y);
             y += 6;
@@ -464,7 +536,6 @@ function printSchedule() {
             return;
         }
 
-        // Prepare table data
         const tableData = [];
         let totalWorkHours = 0;
 
@@ -505,7 +576,6 @@ function printSchedule() {
             tableData.push({ data: row, styles });
         }
 
-        // Draw table
         try {
             doc.autoTable({
                 startY: y,
@@ -553,16 +623,13 @@ function printSchedule() {
             return;
         }
 
-        // Update y position after table
         y = doc.lastAutoTable.finalY + 8;
 
-        // Total hours
         try {
             doc.setFontSize(10);
             doc.text(`Summe der Arbeitsstunden: ${ScheduleRenderer.formatHours(totalWorkHours)}`, margin, y);
             y += 6;
 
-            // Notes
             doc.setFontSize(8);
             doc.text('* Pausen: mind. 30 Minuten täglich (Eingabe im Format 00:00)', margin, y);
             y += 5;
@@ -574,7 +641,6 @@ function printSchedule() {
         }
     });
 
-    // Save PDF với tên theo tháng và năm
     doc.save(`danh_sach_thang_${month}_${year}.pdf`);
 }
 
@@ -584,8 +650,10 @@ function saveEmployeesToStorage() {
     rows.forEach(row => {
         const name = row.querySelector('.employee-name').value.trim();
         const hours = parseFloat(row.querySelector('.total-hours').value) || 0;
+        const fixedRestDaysInputs = row.querySelectorAll('.fixed-rest-day:checked');
+        const fixedRestDays = Array.from(fixedRestDaysInputs).map(input => parseInt(input.value));
         if (name) {
-            employees.push({ name, hours });
+            employees.push({ name, hours, fixedRestDays });
         }
     });
     localStorage.setItem('employees', JSON.stringify(employees));
@@ -594,31 +662,50 @@ function saveEmployeesToStorage() {
 function loadEmployeesFromStorage() {
     const storedEmployees = localStorage.getItem('employees');
     const tbody = document.querySelector('#employeeTable tbody');
-    tbody.innerHTML = ''; // Clear existing rows
+    tbody.innerHTML = '';
 
     if (storedEmployees) {
         const employees = JSON.parse(storedEmployees);
         employees.forEach((emp, index) => {
             const row = document.createElement('tr');
             row.innerHTML = `
-                <td>${index + 1}</td>
-                <td><input type="text" class="employee-name" value="${emp.name}"></td>
-                <td><input type="number" class="total-hours" min="0" value="${emp.hours || ''}"></td>
-                <td><button onclick="deleteEmployee(this)">Xóa tên</button></td>
+                <td class="index" data-label="Số thứ tự">${index + 1}</td>
+                <td data-label="Tên nhân viên"><input type="text" class="employee-name" value="${emp.name}"></td>
+                <td data-label="Tổng số giờ làm"><input type="number" class="total-hours" min="0" value="${emp.hours || ''}"></td>
+                <td class="fixed-rest-days" data-label="Ngày nghỉ cố định">
+                    <label><input type="checkbox" class="fixed-rest-day" value="1" ${emp.fixedRestDays.includes(1) ? 'checked' : ''}> T2</label>
+                    <label><input type="checkbox" class="fixed-rest-day" value="2" ${emp.fixedRestDays.includes(2) ? 'checked' : ''}> T3</label>
+                    <label><input type="checkbox" class="fixed-rest-day" value="3" ${emp.fixedRestDays.includes(3) ? 'checked' : ''}> T4</label>
+                    <label><input type="checkbox" class="fixed-rest-day" value="4" ${emp.fixedRestDays.includes(4) ? 'checked' : ''}> T5</label>
+                    <label><input type="checkbox" class="fixed-rest-day" value="5" ${emp.fixedRestDays.includes(5) ? 'checked' : ''}> T6</label>
+                </td>
+                <td data-label="Hành động">
+                    <button id="random-btn-${index + 1}" class="random-btn ${emp.fixedRestDays.length > 0 ? 'hide-random-btn' : ''}" onclick="randomizeEmployeeRestDays(this)">Random</button>
+                    <button onclick="deleteEmployee(this)">Xóa</button>
+                </td>
             `;
             tbody.appendChild(row);
         });
     }
 
-    // Ensure at least 3 rows
     while (tbody.children.length < 3) {
         const row = document.createElement('tr');
         const index = tbody.children.length + 1;
         row.innerHTML = `
-            <td>${index}</td>
-            <td><input type="text" class="employee-name"></td>
-            <td><input type="number" class="total-hours" min="0"></td>
-            <td><button onclick="deleteEmployee(this)">Xóa tên</button></td>
+            <td class="index" data-label="Số thứ tự">${index}</td>
+            <td data-label="Tên nhân viên"><input type="text" class="employee-name"></td>
+            <td data-label="Tổng số giờ làm"><input type="number" class="total-hours" min="0"></td>
+            <td class="fixed-rest-days" data-label="Ngày nghỉ cố định">
+                <label><input type="checkbox" class="fixed-rest-day" value="1"> T2</label>
+                <label><input type="checkbox" class="fixed-rest-day" value="2"> T3</label>
+                <label><input type="checkbox" class="fixed-rest-day" value="3"> T4</label>
+                <label><input type="checkbox" class="fixed-rest-day" value="4"> T5</label>
+                <label><input type="checkbox" class="fixed-rest-day" value="5"> T6</label>
+            </td>
+            <td data-label="Hành động">
+                <button id="random-btn-${index}" class="random-btn" onclick="randomizeEmployeeRestDays(this)">Random</button>
+                <button onclick="deleteEmployee(this)">Xóa</button>
+            </td>
         `;
         tbody.appendChild(row);
     }
@@ -629,10 +716,20 @@ function addEmployee() {
     const index = tbody.children.length + 1;
     const row = document.createElement('tr');
     row.innerHTML = `
-        <td>${index}</td>
-        <td><input type="text" class="employee-name"></td>
-        <td><input type="number" class="total-hours" min="0"></td>
-        <td><button onclick="deleteEmployee(this)">Xóa tên</button></td>
+        <td class="index" data-label="Số thứ tự">${index}</td>
+        <td data-label="Tên nhân viên"><input type="text" class="employee-name"></td>
+        <td data-label="Tổng số giờ làm"><input type="number" class="total-hours" min="0"></td>
+        <td class="fixed-rest-days" data-label="Ngày nghỉ cố định">
+            <label><input type="checkbox" class="fixed-rest-day" value="1"> T2</label>
+            <label><input type="checkbox" class="fixed-rest-day" value="2"> T3</label>
+            <label><input type="checkbox" class="fixed-rest-day" value="3"> T4</label>
+            <label><input type="checkbox" class="fixed-rest-day" value="4"> T5</label>
+            <label><input type="checkbox" class="fixed-rest-day" value="5"> T6</label>
+        </td>
+        <td data-label="Hành động">
+            <button id="random-btn-${index}" class="random-btn" onclick="randomizeEmployeeRestDays(this)">Random</button>
+            <button onclick="deleteEmployee(this)">Xóa</button>
+        </td>
     `;
     tbody.appendChild(row);
     saveEmployeesToStorage();
@@ -641,21 +738,33 @@ function addEmployee() {
 function deleteEmployee(button) {
     const row = button.parentElement.parentElement;
     row.remove();
-    // Reindex rows
     const tbody = document.querySelector('#employeeTable tbody');
     const rows = tbody.querySelectorAll('tr');
     rows.forEach((row, index) => {
         row.cells[0].textContent = index + 1;
+        const randomBtn = row.querySelector('.random-btn');
+        if (randomBtn) {
+            randomBtn.id = `random-btn-${index + 1}`;
+        }
     });
-    // Ensure at least 3 rows
     while (tbody.children.length < 3) {
         const row = document.createElement('tr');
         const index = tbody.children.length + 1;
         row.innerHTML = `
-            <td>${index}</td>
-            <td><input type="text" class="employee-name"></td>
-            <td><input type="number" class="total-hours" min="0"></td>
-            <td><button onclick="deleteEmployee(this)">Xóa tên</button></td>
+            <td class="index" data-label="Số thứ tự">${index}</td>
+            <td data-label="Tên nhân viên"><input type="text" class="employee-name"></td>
+            <td data-label="Tổng số giờ làm"><input type="number" class="total-hours" min="0"></td>
+            <td class="fixed-rest-days" data-label="Ngày nghỉ cố định">
+                <label><input type="checkbox" class="fixed-rest-day" value="1"> T2</label>
+                <label><input type="checkbox" class="fixed-rest-day" value="2"> T3</label>
+                <label><input type="checkbox" class="fixed-rest-day" value="3"> T4</label>
+                <label><input type="checkbox" class="fixed-rest-day" value="4"> T5</label>
+                <label><input type="checkbox" class="fixed-rest-day" value="5"> T6</label>
+            </td>
+            <td data-label="Hành động">
+                <button id="random-btn-${index}" class="random-btn" onclick="randomizeEmployeeRestDays(this)">Random</button>
+                <button onclick="deleteEmployee(this)">Xóa</button>
+            </td>
         `;
         tbody.appendChild(row);
     }
@@ -687,22 +796,78 @@ function generateSchedule() {
     const weekAnalyzer = new WeekAnalyzer(days, holidays);
     const weeks = weekAnalyzer.getWeeks();
 
-    const dayOffDistributor = new DayOffDistributor(employees, weeks, holidays);
+    const dayOffDistributor = new DayOffDistributor(employees, weeks, holidays, days);
     dayOffDistributor.distribute();
 
     const hourAllocator = new HourAllocator(employees, days);
     hourAllocator.allocate();
 
-    // Chuyển restDays từ Set thành mảng trước khi lưu
     const employeesToStore = employees.map(emp => ({
         ...emp,
-        restDays: Array.from(emp.restDays)
+        restDays: Array.from(emp.restDays),
+        fixedRestDays: Array.from(emp.fixedRestDays)
     }));
     localStorage.setItem('employeeSchedules', JSON.stringify(employeesToStore));
 
     ScheduleRenderer.render(employees, days, month, year, holidays);
 
-    // Hiển thị nút In
+    document.getElementById('printAllButton').style.display = 'inline-block';
+
+    const stats = StatisticsGenerator.generate(employees, days);
+    console.log('Thống kê:', stats);
+}
+
+function randomizeEmployeeRestDays(button) {
+    const monthInput = document.getElementById('month').value;
+    if (!monthInput) {
+        alert('Vui lòng chọn tháng!');
+        return;
+    }
+    const [year, month] = monthInput.split('-').map(Number);
+    const calendar = new CalendarGenerator(year, month);
+    const days = calendar.getDays();
+
+    const holidayPicker = new HolidayPicker(document.getElementById('holidays').value);
+    const holidays = holidayPicker.getHolidays();
+
+    const employeeManager = new EmployeeManager();
+    const employees = employeeManager.loadEmployees();
+    if (employees.length === 0) {
+        alert('Vui lòng nhập ít nhất một nhân viên và tổng số giờ làm!');
+        return;
+    }
+
+    const row = button.parentElement.parentElement;
+    const name = row.querySelector('.employee-name').value.trim();
+    const hours = parseFloat(row.querySelector('.total-hours').value) || 0;
+    const employee = employees.find(emp => emp.name === name && emp.totalHours === hours);
+    if (!employee) {
+        alert('Không tìm thấy nhân viên này!');
+        return;
+    }
+    if (employee.fixedRestDays.size > 0) {
+        alert('Nhân viên có ngày nghỉ cố định không thể random!');
+        return;
+    }
+
+    const weekAnalyzer = new WeekAnalyzer(days, holidays);
+    const weeks = weekAnalyzer.getWeeks();
+
+    const dayOffDistributor = new DayOffDistributor(employees, weeks, holidays, days);
+    dayOffDistributor.redistributeForEmployee(employee);
+
+    const hourAllocator = new HourAllocator([employee], days);
+    hourAllocator.allocate();
+
+    const employeesToStore = employees.map(emp => ({
+        ...emp,
+        restDays: Array.from(emp.restDays),
+        fixedRestDays: Array.from(emp.fixedRestDays)
+    }));
+    localStorage.setItem('employeeSchedules', JSON.stringify(employeesToStore));
+
+    ScheduleRenderer.render(employees, days, month, year, holidays);
+
     document.getElementById('printAllButton').style.display = 'inline-block';
 
     const stats = StatisticsGenerator.generate(employees, days);
