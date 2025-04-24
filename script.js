@@ -680,7 +680,7 @@ function loadEmployeesFromStorage() {
                     <label><input type="checkbox" class="fixed-rest-day" value="5" ${emp.fixedRestDays.includes(5) ? 'checked' : ''}> T6</label>
                 </td>
                 <td data-label="Hành động">
-                    <button id="random-btn-${index + 1}" class="random-btn ${emp.fixedRestDays.length > 0 ? 'hide-random-btn' : ''}" onclick="randomizeEmployeeRestDays(this)">Random</button>
+                    <button id="random-btn-${index + 1}" class="random-btn ${emp.fixedRestDays.length > 0 ? 'hide-random-btn' : ''}" onclick="randomizeEmployeeRestDays(this)">Tạo lại lịch nghỉ</button>
                     <button onclick="deleteEmployee(this)">Xóa</button>
                 </td>
             `;
